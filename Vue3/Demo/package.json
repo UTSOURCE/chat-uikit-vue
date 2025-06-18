@@ -1,6 +1,6 @@
 {
   "name": "sample-web-vue3",
-  "version": "2.4.3",
+  "version": "2.5.0",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@tencentcloud/call-uikit-vue": "3.3.9",
+    "@tencentcloud/call-uikit-vue": "latest",
     "@tencentcloud/chat-uikit-engine": "latest",
     "@tencentcloud/chat-uikit-vue": "2.4.3",
     "@tencentcloud/roomkit-web-vue3": "2.8.2",
