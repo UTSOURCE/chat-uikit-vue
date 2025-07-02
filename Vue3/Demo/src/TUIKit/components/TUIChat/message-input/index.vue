@@ -15,9 +15,20 @@
         @onAt="onAt"
       />
       <MessageInputButton
-        v-if="!props.isMuted"
+        v-if="!props.isMuted && !isRobotStreaming"
         @sendMessage="sendMessage"
       />
+      <MessageInputButton
+        v-if="isRobotStreaming"
+        className="break-btn"
+        :hoverText="TUITranslateService.t('TUIChat.停止回答')"
+        @sendMessage="sendBreakMessage"
+      >
+        <Icon
+          :file="breakBtnSvg"
+          class="icon"
+        />
+      </MessageInputButton>
       <MessageInputAt
         v-if="props.enableAt"
         ref="messageInputAtRef"
@@ -34,8 +45,9 @@ import {
   TUIStore,
   StoreName,
   IConversationModel,
+  TUITranslateService,
 } from '@tencentcloud/chat-uikit-engine';
-import { ref } from '../../../adapter-vue';
+import { computed, ref } from '../../../adapter-vue';
 import MessageInputEditor from './message-input-editor.vue';
 import MessageInputAt from './message-input-at/index.vue';
 import MessageInputButton from './message-input-button.vue';
@@ -43,6 +55,9 @@ import MessageInputQuote from './message-input-quote/index.vue';
 import { sendMessages, sendTyping } from '../utils/sendMessage';
 import { transformTextWithEmojiNamesToKeys } from '../emoji-config';
 import { isPC, isH5 } from '../../../utils/env';
+import AiRobotManager from '../aiRobotManager';
+import Icon from '../../common/Icon.vue';
+import breakBtnSvg from '../../../assets/icon/break-btn.svg';
 
 const props = defineProps({
   placeholder: {
@@ -79,11 +94,23 @@ const emit = defineEmits(['sendMessage', 'resetReplyOrReference', 'onTyping']);
 const editor = ref<InstanceType<typeof MessageInputEditor>>();
 const messageInputAtRef = ref<InstanceType<typeof MessageInputAt>>();
 const currentConversation = ref<IConversationModel>();
+const robotStreamingStatus = ref<Record<string, boolean>>({});
+
+AiRobotManager.onSteamingStatusChange((option?: Record<string, boolean>) => {
+  robotStreamingStatus.value = option || {};
+});
 
 TUIStore.watch(StoreName.CONV, {
   currentConversation: (conversation: IConversationModel) => {
     currentConversation.value = conversation;
   },
+});
+
+const isRobotStreaming = computed(() => {
+  if (currentConversation.value?.conversationID) {
+    return robotStreamingStatus.value[currentConversation.value?.conversationID] || false;
+  }
+  return false;
 });
 
 const onTyping = (inputContentEmpty: boolean, inputBlur: boolean) => {
@@ -94,8 +121,20 @@ const onAt = (show: boolean) => {
   messageInputAtRef.value?.toggleAtList(show);
 };
 
-const sendMessage = async () => {
-  const _editorContentList = editor.value?.getEditorContent();
+const sendBreakMessage = () => {
+  AiRobotManager.sendBreakConversation(currentConversation.value?.conversationID || '');
+};
+
+const sendMessage = async (type: string = 'text') => {
+  if (isRobotStreaming.value && type === 'enter') {
+    return;
+  }
+
+  if (isRobotStreaming.value) {
+    return sendBreakMessage();
+  }
+
+  const _editorContentList = editor.value?.getEditorContent() as any[];
   if (!_editorContentList || !currentConversation.value) return;
   const editorContentList = _editorContentList.map((editor: any) => {
     if (editor.type === 'text') {
@@ -136,7 +175,7 @@ defineExpose({
 });
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
 @import "../../../assets/styles/common";
 
 .message-input-wrapper {
@@ -158,5 +197,8 @@ defineExpose({
   display: flex;
   flex-flow: row nowrap;
   align-items: flex-end;
+}
+.break-btn {
+  background: none !important;
 }
 </style>

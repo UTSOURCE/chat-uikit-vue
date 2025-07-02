@@ -1,5 +1,7 @@
 <template>
-  <div :class="containerClassNameList">
+  <div
+    :class="containerClassNameList"
+    :date-message="AiRobotManager.isRobotMessage(messageItem) ? 'robotMessage' : messageItem.type">
     <!-- multiple select radio -->
     <RadioSelect
       v-if="props.isMultipleSelectMode"
@@ -136,6 +138,7 @@ import RadioSelect from '../../../common/RadioSelect/index.vue';
 import loadingIcon from '../../../../assets/icon/loading.png';
 import { shallowCopyMessage } from '../../utils/utils';
 import { isPC } from '../../../../utils/env';
+import AiRobotManager from '../../aiRobotManager';
 
 interface IProps {
   messageItem: IMessageModel;
@@ -478,6 +481,14 @@ function openReadUserPanel() {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+[date-message="robotMessage"] {
+  .content-in {
+    background: none !important;
+    padding: 0 !important;
+    border-radius: 0 10px 10px;
   }
 }
 </style>

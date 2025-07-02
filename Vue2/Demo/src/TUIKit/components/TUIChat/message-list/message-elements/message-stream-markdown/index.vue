@@ -6,25 +6,28 @@
       v-html="markedContent"
     />
     <StreamOperation
-      v-show="isOperationShow"
       :content="streamContent"
+      :operations="operations"
+      @onOperationClick="onOperationClick"
     />
   </div>
 </template>
 <script lang="ts" setup>
 import { watch, ref, computed, onMounted, onUnmounted } from '../../../../../adapter-vue';
-import { TUITranslateService, TUIReportService } from '@tencentcloud/chat-uikit-engine';
+import { TUITranslateService, TUIReportService, IMessageModel } from '@tencentcloud/chat-uikit-engine';
 import { TypeWriter } from './type-writer';
 import { markedWithPurify } from './marked';
-import { JSONToObject } from '../../../../../utils';
 import StreamOperation from './operation/index.vue';
 import CopyManager from '../../../utils/copy';
+import { IOperationType } from './operation/type';
+import AiRobotManager from '../../../aiRobotManager';
 
 interface IProps {
   payloadData: string;
   enableMarkdown?: boolean;
   enableStreaming?: boolean;
   enableOperation?: boolean;
+  message?: IMessageModel;
 }
 const props = withDefaults(defineProps<IProps>(), {
   payloadData: () => '',
@@ -38,14 +41,12 @@ const emits = defineEmits(['onStreaming']);
 const messageContentRef = ref();
 const isStreaming = ref<boolean>(false);
 const chunks = ref<string>('');
-const isFinished = ref<boolean>(true);
+const isFinished = ref<boolean>(false);
 const prevChunksLength = ref<number>(0);
 const streamContent = ref<string>('');
 const markedContent = computed(() => generateMarkedContent(streamContent.value));
-const isUnparsedMessage = ref<string>(false);
-const isOperationShow = computed(() => {
-  return props.enableOperation && isFinished.value && !isStreaming.value && !isUnparsedMessage.value;
-});
+const isUnparsedMessage = ref<boolean>(false);
+const operations = ref<IOperationType[]>([IOperationType.Break]);
 
 const typeWriter = new TypeWriter({
   onTyping: (item: string) => {
@@ -58,13 +59,18 @@ const typeWriter = new TypeWriter({
 });
 
 const generateMarkedContent = (content: string) => {
-  if (!props.enableMarkdown) {
-    return content;
+  let renderContent = content;
+  if (AiRobotManager.isThinkingMessage(props.message)) {
+    return renderContent = '<span class="loader"></span>';
   }
-  if (!content && !isFinished.value) {
-    return '<div class="loader"></div>';
+  if (props.enableMarkdown) {
+    renderContent = markedWithPurify(content);
   }
-  return markedWithPurify(content);
+  if (!isFinished.value) {
+    renderContent += '<span class="loader"></span>';
+  }
+
+  return renderContent;
 };
 
 function startStreaming(content: string[]) {
@@ -77,62 +83,55 @@ function startStreaming(content: string[]) {
   }
 }
 
-watch(() => props.payloadData,
-  (newValue: string, oldValue: string) => {
-    if (newValue === oldValue) {
-      return;
-    }
+watch(() => props.payloadData, (newValue, oldValue) => {
+  if (newValue === oldValue) {
+    return;
+  }
 
-    if(props.enableMarkdown){
-      TUIReportService.reportFeature(206);
-    }
-    if(props.enableStreaming){
-      TUIReportService.reportFeature(207);
-    }
+  if (props.enableMarkdown) {
+    TUIReportService.reportFeature(206);
+  }
+  if (props.enableStreaming) {
+    TUIReportService.reportFeature(207);
+  }
 
-    const _payloadDataObject = JSONToObject(props.payloadData);
+  const { text, payloadData } = AiRobotManager.getRobotRenderContent(props.payloadData);
+  const { chunks: _chunks, content: _content, errorInfo } = payloadData;
+  const customChunks = _chunks || _content;
+  chunks.value = text || errorInfo;
 
-    if (_payloadDataObject.chunks) {
-      const _chunks = _payloadDataObject.chunks;
-      if (typeof _chunks === 'string' || Array.isArray(_chunks)) {
-        chunks.value = Array.isArray(_chunks) ? _chunks.join('') : _chunks;
-      } else {
-        chunks.value = TUITranslateService.t('TUIChat.[机器人自定义消息]');
-        isUnparsedMessage.value = true;
-      }
-    } else if (_payloadDataObject.content) {
-      const _content = _payloadDataObject.content;
-      if (typeof _content === 'string' || Array.isArray(_content)) {
-        chunks.value = Array.isArray(_content) ? _content.join('') : _content;
-      } else {
-        chunks.value = TUITranslateService.t('TUIChat.[机器人自定义消息]');
-        isUnparsedMessage.value = true;
-      }
-    } else if (_payloadDataObject.text) {
-      chunks.value = _payloadDataObject.text;
-    } else {
-      chunks.value = '';
-    }
+  if (!text && customChunks && payloadData.isFinished === 1) {
+    isUnparsedMessage.value = typeof customChunks !== 'string' && !Array.isArray(customChunks);
+    chunks.value = TUITranslateService.t('TUIChat.[机器人自定义消息]');
+  }
 
-    isFinished.value = _payloadDataObject.isFinished === 0 ? false : true;
+  if (Object.keys(payloadData).includes('isFinished')) {
+    isFinished.value = payloadData.isFinished === 0 ? false : true;
+  } else {
+    isFinished.value = true;
+  }
 
-    if (!props.enableStreaming || (newValue && !oldValue && isFinished.value)) {
-      // disable typeWriter style or history message first load
-      streamContent.value = chunks.value;
-    } else {
-      const _newChunksToAdd = chunks.value?.slice(prevChunksLength.value);
+  operations.value = !isFinished.value && !payloadData.isThinking ? [IOperationType.Break] : [];
+
+  if (!props.enableStreaming || (newValue && !oldValue && isFinished.value)) {
+    // disable typeWriter style or history message first load
+    streamContent.value = chunks.value;
+  } else {
+    const _newChunksToAdd = chunks.value?.slice(prevChunksLength.value);
+    if (_newChunksToAdd) {
       startStreaming([_newChunksToAdd]);
     }
+  }
 
-    prevChunksLength.value = chunks.value?.length;
-  }, {
-    deep: true,
-    immediate: true,
-  },
+  prevChunksLength.value = chunks.value?.length;
+}, {
+  deep: true,
+  immediate: true,
+},
 );
 
 onMounted(() => {
-  watch(() => isStreaming.value, (newValue: boolean, oldValue: boolean) => {
+  watch(() => isStreaming.value, (newValue, oldValue) => {
     if (newValue === oldValue) {
       return;
     }
@@ -165,9 +164,15 @@ function copyCode(event: Event) {
   const codeContainer = (event.target as HTMLElement)?.closest('.message-marked_code-container');
   const codeElement = codeContainer?.querySelector('.message-marked_code-content');
   if (codeElement) {
-    CopyManager.copyTextOrHtml(codeElement.textContent, 'text');
+    CopyManager.copyTextOrHtml(codeElement?.textContent || '', 'text');
   }
 }
+
+const onOperationClick = (e: Event, key: IOperationType) => {
+  if (key === IOperationType.Break) {
+    AiRobotManager.sendBreakMessage(props.message as IMessageModel);
+  }
+};
 
 </script>
 <style lang="scss" src="./index.scss"></style>

@@ -2,6 +2,7 @@
   <div
     ref="operationContainerRef"
     class="message-stream_operation_container"
+    v-if="operationConfig.length > 0"
   >
     <div class="message-stream_operation_list">
       <div
@@ -20,6 +21,7 @@
           :name="operation.name"
           size="14px"
         />
+        <label v-if="operation.text">{{ operation.text }}</label>
       </div>
     </div>
   </div>
@@ -29,6 +31,7 @@ import { computed } from '../../../../../../adapter-vue';
 import { TUITranslateService } from '@tencentcloud/chat-uikit-engine';
 import Icon from '../../../../../common/Icon.vue';
 import copySVG from '../../../../../../assets/icon/msg-copy.svg';
+import breakSVG from '../../../../../../assets/icon/break.svg';
 import CopyManager from '../../../../utils/copy';
 import { IOperationType, IOperation } from './type';
 
@@ -45,7 +48,7 @@ interface IEmits {
 }
 
 const props = withDefaults(defineProps<IProps>(), {
-  operations: () => [IOperationType.Copy],
+  operations: () => [],
 });
 const emits = defineEmits<IEmits>();
 
@@ -56,13 +59,23 @@ const defaultOperationConfig: Record<string, IOperation> = {
     icon: copySVG,
     isDisabled: false,
     onClick: () => {
-      CopyManager.copyTextOrHtml(props.content, 'text');
+      CopyManager.copyTextOrHtml(props.content || '', 'text');
+    },
+  },
+  [IOperationType.Break]: {
+    key: IOperationType.Break,
+    name: TUITranslateService.t('TUIChat.点击打断'),
+    text: TUITranslateService.t('TUIChat.点击打断'),
+    icon: breakSVG,
+    isDisabled: false,
+    onClick: (e) => {
+      emits('onOperationClick', e, IOperationType.Break)
     },
   },
 };
 
 const operationConfig = computed(() => {
-  return props.operations
+  const currentConfig = props.operations
     .map((key: IOperationType) => {
       const config = defaultOperationConfig?.[key];
       if (!config) {
@@ -80,28 +93,30 @@ const operationConfig = computed(() => {
       };
     })
     .filter(Boolean) as IOperation[];
+  return currentConfig;
 });
 </script>
 <style lang="scss" scoped>
   .message-stream_operation_container {
     display: flex;
-    flex-direction: row;
-    align-self: flex-end;
-    padding: 5px;
-    border-radius: 3px;
-    margin: 3px;
 
     .message-stream_operation_list {
       display: flex;
-      flex-direction: row;
 
       .message-stream_operation_item {
         display: flex;
-      }
-
-      .message-stream_operation_item_disabled {
+        align-items: center;
+        gap: 4px;
+        border-radius: 4px;
+        border: 1px solid #E6E9EF;
+        padding: 4px 8px;
+        font-family: PingFang SC;
+        font-weight: 400;
+        font-size: 12px;
+        line-height: 20px;
+        color: #0000008C;
         * {
-          cursor: not-allowed;
+          cursor: pointer;
         }
       }
     }

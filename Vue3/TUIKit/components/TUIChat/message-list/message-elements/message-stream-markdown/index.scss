@@ -5,6 +5,7 @@
   -moz-user-select: text;
   -ms-user-select: text;
   user-select: text;
+  gap: 4px;
 }
 
 /* message typewriter style*/
@@ -32,8 +33,9 @@
 
 /* loading style */
 .loader {
-  width: 40px;
-  height: 20px;
+  display: inline-block;
+  width: 20px;
+  height: 10px;
   aspect-ratio: 5;
   --_g: no-repeat radial-gradient(circle closest-side,#bbb 90%,transparent);
   background:
@@ -199,3 +201,13 @@
   margin-bottom: 0;
 }
 /* stylelint-enable */
+
+.message-typewriter {
+  display: inline;
+  background: #fbfbfb;
+  border-radius: 0 10px 10px;
+  padding: 12px;
+  p {
+    display: inline;
+  }
+}
