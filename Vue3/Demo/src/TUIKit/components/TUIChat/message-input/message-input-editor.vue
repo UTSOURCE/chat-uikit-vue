@@ -227,7 +227,7 @@ function handleEnter(e: any) {
     editor?.commands?.insertContent('<p></p>');
   } else if (e.keyCode === 13) {
     // enter only: send message
-    emits('sendMessage');
+    emits('sendMessage', 'enter');
   }
 }
 

@@ -32,6 +32,7 @@
       />
       <Evaluate v-if="featureConfig.InputEvaluation" />
       <Words v-if="featureConfig.InputQuickReplies" />
+      <ClearHistory v-if="featureConfig.ClearHistory" />
       <template v-if="extensionListShowInStart[0]">
         <ToolbarItemContainer
           v-for="extension in extensionListShowInStart"
@@ -90,12 +91,14 @@ import FileUpload from './file-upload/index.vue';
 import VideoUpload from './video-upload/index.vue';
 import Evaluate from './evaluate/index.vue';
 import Words from './words/index.vue';
+import ClearHistory from './clearHistory/index.vue';
 import ToolbarItemContainer from './toolbar-item-container/index.vue';
 import UserSelector from './user-selector/index.vue';
 import { isPC, isH5, isUniFrameWork } from '../../../utils/env';
 import TUIChatConfig from '../config';
 import { enableSampleTaskStatus } from '../../../utils/enableSampleTaskStatus';
 import { ToolbarDisplayType } from '../../../interface';
+import AiRobotManager from '../aiRobotManager';
 
 interface IProps {
   displayType: ToolbarDisplayType;
@@ -118,9 +121,8 @@ const userSelectorRef = ref();
 const emojiPickerRef = ref<InstanceType<typeof EmojiPicker>>();
 const currentUserSelectorExtension = ref<ExtensionInfo>();
 const currentExtensionList = ref<ExtensionInfo[]>([]);
-const featureConfig = TUIChatConfig.getFeatureConfig();
+const featureConfig = ref(TUIChatConfig.getFeatureConfig());
 const isRenderedEmojiPicker = ref<boolean>(true);
-isRenderedEmojiPicker.value = featureConfig.InputEmoji || featureConfig.InputStickers;
 
 onMounted(() => {
   TUIStore.watch(StoreName.CUSTOM, {
@@ -147,6 +149,13 @@ const onActiveConversationUpdate = (conversationID: string) => {
     return;
   }
   if (conversationID !== currentConversation.value?.conversationID) {
+    if (AiRobotManager.isRobot(conversationID)) {
+      AiRobotManager.initAiRobotChat(conversationID);
+    } else {
+      TUIChatConfig.resetFeatureConfig();
+    }
+    featureConfig.value = TUIChatConfig.getFeatureConfig();
+    isRenderedEmojiPicker.value = featureConfig.value.InputEmoji || featureConfig.value.InputStickers;
     getExtensionList();
     currentConversation.value = TUIStore.getData(StoreName.CONV, 'currentConversation');
     isGroup.value = conversationID.startsWith(TUIChatEngine.TYPES.CONV_GROUP);
@@ -166,7 +175,12 @@ const getExtensionList = () => {
     ...TUICore.getExtensionList(TUIConstants.TUIChat.EXTENSION.INPUT_MORE.EXT_ID, params),
   ].filter((extension: ExtensionInfo) => {
     if (extension?.data?.name === 'search') {
-      return featureConfig.MessageSearch;
+      return featureConfig.value.MessageSearch;
+    }
+    const isVoiceCall = extension?.data?.name === 'voiceCall';
+    const isVideoCall = extension?.data?.name === 'videoCall';
+    if (chatType === 'aiRobot' && (isVoiceCall || isVideoCall)) {
+      return false;
     }
     return true;
   });

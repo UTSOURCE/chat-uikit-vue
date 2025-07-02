@@ -38,7 +38,7 @@
         @click="onMessageListBackgroundClick"
       >
         <p
-          v-if="!isCompleted"
+          v-if="isShowLoadMore"
           class="message-more"
           @click="getHistoryMessageList"
         >
@@ -156,7 +156,7 @@
                     :content="item.getMessageContent()"
                   />
                   <MessageStreamMarkdown
-                    v-else-if="isBotMessage(item)"
+                    v-else-if="AiRobotManager.isRobotMessage(item)"
                     :payloadData="item.payload.data"
                     :message="item"
                     @onStreaming="scrollStreamMessageToBottom"
@@ -174,6 +174,9 @@
                     :emojiConfig="emojiConfig"
                     :message="shallowCopyMessage(item)"
                   />
+                </template>
+                <template #messageExtra>
+
                 </template>
               </MessageBubble>
             </div>
@@ -266,7 +269,6 @@ import MessageTool from './message-tool/index.vue';
 import MessageRevoked from './message-tool/message-revoked.vue';
 import MessagePlugin from '../../../plugins/plugin-components/message-plugin.vue';
 import MessageStreamMarkdown from './message-elements/message-stream-markdown/index.vue';
-import { isBotMessage } from './message-elements/message-stream-markdown/index';
 import ScrollButton from './scroll-button/index.vue';
 import ReadReceiptPanel from './read-receipt-panel/index.vue';
 import { isPluginMessage } from '../../../plugins/plugin-components/index';
@@ -278,6 +280,7 @@ import { isPC, isH5 } from '../../../utils/env';
 import chatStorage from '../utils/chatStorage';
 import { throttle } from '../../../utils/lodash';
 import { isEnabledMessageReadReceiptGlobal, shallowCopyMessage, isCreateGroupCustomMessage, deepCopy } from '../utils/utils';
+import AiRobotManager from '../aiRobotManager';
 
 interface ScrollConfig {
   scrollToMessage?: IMessageModel;
@@ -412,6 +415,11 @@ onUnmounted(() => {
   observer = null;
 });
 
+const isShowLoadMore = computed(() => {
+  const list = allMessageList.value || [];
+  return list.length > 0 && !isCompleted.value;
+})
+
 async function onMessageListUpdated(list: IMessageModel[]) {
   observer?.disconnect();
   const oldLastMessage = currentLastMessage.value;
@@ -423,6 +431,10 @@ async function onMessageListUpdated(list: IMessageModel[]) {
     }
     return !message.isDeleted;
   });
+  if (AiRobotManager.isRobot(currentConversationID.value)) {
+    messageList.value = AiRobotManager.handleMessageList(messageList.value, currentConversationID.value);
+  }
+
   if (!messageList.value?.length) {
     currentLastMessage.value = {};
     return;

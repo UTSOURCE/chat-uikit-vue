@@ -111,6 +111,7 @@ import { isPC, isWeChat, isUniFrameWork, isMobile, isApp } from '../../utils/env
 import { ToolbarDisplayType } from '../../interface';
 import TUIChatConfig from './config';
 
+
 const emits = defineEmits(['closeChat']);
 
 const groupID = ref(undefined);
