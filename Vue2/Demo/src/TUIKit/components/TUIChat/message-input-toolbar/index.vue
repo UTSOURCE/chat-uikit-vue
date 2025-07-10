@@ -106,7 +106,7 @@ interface IProps {
 interface IEmits {
   (e: 'scrollToLatestMessage'): void;
   (e: 'changeToolbarDisplayType', type: ToolbarDisplayType): void;
-  (e: 'insertEmoji', emoji: any): void;
+  (e: 'insertEmoji', emoji: any): void
 }
 const props = withDefaults(defineProps<IProps>(), {
   displayType: 'none',
@@ -187,14 +187,14 @@ const getExtensionList = () => {
   reportExtension(currentExtensionList.value);
 };
 
-function reportExtension(extensionList: ExtensionInfo[]) {
-  extensionList.forEach((extension: ExtensionInfo) => {
+function reportExtension(extensionList:ExtensionInfo[]){
+  extensionList.forEach((extension: ExtensionInfo)=>{
     const _name = extension?.data?.name;
-    if (_name === 'voiceCall') {
+    if(_name === 'voiceCall'){
       TUIReportService.reportFeature(203, 'voice-call');
     } else if (_name === 'videoCall') {
       TUIReportService.reportFeature(203, 'video-call');
-    } else if (_name === 'quickRoom') {
+    } else if(_name === 'quickRoom'){
       TUIReportService.reportFeature(204);
     }
   });
@@ -237,7 +237,6 @@ const onCallExtensionClicked = (extension: ExtensionInfo, callType: number) => {
     extension.listener?.onClicked?.({
       userIDList: [currentConversation?.value?.conversationID?.slice(3)],
       type: callType,
-      version: 'v3',
     });
   } else if (isGroup.value) {
     currentUserSelectorExtension.value = extension;
