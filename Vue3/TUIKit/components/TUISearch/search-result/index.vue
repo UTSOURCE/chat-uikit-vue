@@ -560,7 +560,7 @@ const navigateToChatPosition = (message: IMessageModel) => {
 };
 
 const generateVueRenderKey = (value: string): string => {
-  return `${currentSearchTabKey}-${value}`;
+  return `${currentSearchTabKey.value}-${value}`;
 };
 </script>
 <style lang="scss" scoped src="./style/index.scss"></style>

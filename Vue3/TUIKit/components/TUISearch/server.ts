@@ -11,6 +11,9 @@ import { TUIGlobal } from '@tencentcloud/universal-api';
 
 export default class TUISearchServer {
   constructor() {
+    if (isUniFrameWork) {
+      TUIStore.update(StoreName.SEARCH, 'isShowInConversationSearch', true);
+    }
     TUICore.registerService(TUIConstants.TUISearch.SERVICE.NAME, this);
     TUICore.registerExtension(TUIConstants.TUIChat.EXTENSION.INPUT_MORE.EXT_ID, this);
   }
